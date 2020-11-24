@@ -60,10 +60,11 @@ impl Runtime for TaskPoolRuntime {
     type Sleep = Pin<Box<dyn Future<Output = ()> + Send>>;
 
     fn spawn<F: Future<Output = ()> + Send + 'static>(&self, f: F) {
-        self.tasks
-            .lock()
-            .unwrap()
-            .push(self.pool.spawn(Box::pin(f)));
+        // self.tasks
+        //     .lock()
+        //     .unwrap()
+        //     .push();
+        self.pool.spawn(Box::pin(f)).detach();
     }
 
     fn now(&self) -> Self::Instant {
@@ -79,19 +80,20 @@ impl Runtime for TaskPoolRuntime {
     }
 
     fn sleep(&self, duration: Duration) -> Self::Sleep {
-        let state = Arc::clone(&self.0);
-        Box::pin(async move {
-            do_delay(state, duration).await;
-        })
+        panic!("sleep is not implemented");
+        // let state = Arc::clone(&self.0);
+        // Box::pin(async move {
+        //     do_delay(state, duration).await;
+        // })
     }
 }
 
-async fn do_delay(state: Arc<TaskPoolRuntimeInner>, duration: Duration) -> instant::Instant {
-    state
-        .pool
-        .spawn(async move {
-            std::thread::sleep(duration);
-        })
-        .await;
-    instant::Instant::now()
-}
+// async fn do_delay(state: Arc<TaskPoolRuntimeInner>, duration: Duration) -> instant::Instant {
+//     state
+//         .pool
+//         .spawn(async move {
+//             std::thread::sleep(duration);
+//         })
+//         .await;
+//     instant::Instant::now()
+// }

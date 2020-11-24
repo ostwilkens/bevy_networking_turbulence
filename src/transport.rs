@@ -15,7 +15,6 @@ use turbulence::{
     packet_multiplexer::{IncomingMultiplexedPackets, MuxPacket, MuxPacketPool, PacketMultiplexer},
 };
 
-#[cfg(not(target_arch = "wasm32"))]
 use futures_lite::{future::block_on, StreamExt};
 
 use super::channels::{SimpleBufferPool, TaskPoolRuntime};
@@ -203,7 +202,8 @@ impl Connection for ClientConnection {
         self.channels_rx = Some(channels_rx);
 
         let mut sender = self.sender.take().unwrap();
-        self.channels_task = Some(self.task_pool.spawn(async move {
+
+        let fake_task = self.task_pool.spawn(async move {
             loop {
                 match channels_tx.next().await {
                     Some(packet) => {
@@ -215,7 +215,11 @@ impl Connection for ClientConnection {
                     }
                 }
             }
-        }));
+        });
+
+        fake_task.detach();
+
+        // );
     }
 
     fn channels(&mut self) -> Option<&mut MessageChannels> {

@@ -108,7 +108,9 @@ impl NetworkResource {
             connections: HashMap::new(),
             connection_sequence: atomic::AtomicU32::new(0),
             pending_connections: Arc::new(Mutex::new(Vec::new())),
+            #[cfg(not(target_arch = "wasm32"))]
             listeners: Vec::new(),
+            #[cfg(not(target_arch = "wasm32"))]
             server_channels: Arc::new(RwLock::new(HashMap::new())),
             runtime,
             packet_pool,
