@@ -12,7 +12,7 @@ use-webrtc = ["naia-server-socket/use-webrtc"]
 [dependencies]
 bevy = {git = "https://github.com/bevyengine/bevy", rev="01ba7c44255059f833c2b90d3d6b7ac7e9c025ca", default-features = false}
 turbulence = "0.3"
-naia-client-socket = { version = "0.4", features = ["multithread"] }
+naia-client-socket = { version = "0.4.2", features = ["multithread"] }
 bytes = "0.5"
 log = "0.4"
 futures-lite = "1.4"
@@ -32,3 +32,8 @@ rand = "0.7"
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "0.2"
+
+[[example]]
+name = "balls"
+path = "examples/balls.rs"
+required-features = ["bevy/default"]
