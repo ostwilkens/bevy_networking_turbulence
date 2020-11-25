@@ -5,11 +5,14 @@
   via reliable channel client->server
 */
 
-use bevy::{app::ScheduleRunnerSettings, prelude::*, render::camera::WindowOrigin};
+#[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is graphical client
+use bevy::render::camera::WindowOrigin;
+use bevy::{app::ScheduleRunnerSettings, prelude::*};
 use bevy_networking_turbulence::{
     ConnectionChannelsBuilder, MessageChannelMode, MessageChannelSettings, NetworkEvent,
     NetworkResource, NetworkingPlugin, ReliableChannelSettings,
 };
+#[cfg(not(any(target_arch = "wasm32", not(feature = "use-webrtc"))))] // is server
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, net::SocketAddr, time::Duration};
@@ -22,6 +25,7 @@ const BOARD_WIDTH: u32 = 1000;
 const BOARD_HEIGHT: u32 = 1000;
 
 fn main() {
+    #[cfg(not(target_arch = "wasm32"))]
     simple_logger::SimpleLogger::from_env()
         .init()
         .expect("A logger was already initialized");
@@ -41,8 +45,9 @@ struct BallsExample;
 impl Plugin for BallsExample {
     fn build(&self, app: &mut AppBuilder) {
         let args = parse_args();
+
+        #[cfg(not(any(target_arch = "wasm32", not(feature = "use-webrtc"))))] // is server
         if args.is_server {
-            // Server
             app.add_resource(ScheduleRunnerSettings::run_loop(Duration::from_secs_f64(
                 1.0 / 60.0,
             )))
@@ -51,22 +56,38 @@ impl Plugin for BallsExample {
             .add_system(ball_movement_system.system())
             .add_resource(NetworkBroadcast { frame: 0 })
             .add_system_to_stage(stage::PRE_UPDATE, handle_messages_server.system())
-            .add_system_to_stage(stage::POST_UPDATE, network_broadcast_system.system())
-        } else {
-            // Client
+            .add_system_to_stage(stage::POST_UPDATE, network_broadcast_system.system());
+        }
+        else {
+            panic!("built client, but running server");
+        }
+
+        #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is graphical client
+        if !args.is_server {
             app.add_resource(WindowDescriptor {
                 width: BOARD_WIDTH,
                 height: BOARD_HEIGHT,
                 ..Default::default()
-            })
-            .add_plugins(DefaultPlugins)
+            });
+
+            
+            // #[cfg(not(target_arch = "wasm32"))]
+            app.add_plugins(DefaultPlugins);
+            
+            #[cfg(target_arch = "wasm32")]
+            app.add_plugin(bevy_webgl2::WebGL2Plugin::default());
+
+            app.add_startup_system(client_setup.system())
             .add_resource(ClearColor(Color::rgb(0.3, 0.3, 0.3)))
-            .add_startup_system(client_setup.system())
-            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_client.system())
             .add_resource(ServerIds::default())
             .add_system(ball_control_system.system())
+            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_client.system());
         }
-        .add_resource(args)
+        else {
+            panic!("built server, but running client");
+        }
+
+        app.add_resource(args)
         .add_plugin(NetworkingPlugin)
         .add_startup_system(network_setup.system())
         .add_resource(NetworkReader::default())
@@ -101,6 +122,7 @@ fn ball_control_system(mut net: ResMut<NetworkResource>, keyboard_input: Res<Inp
     }
 }
 
+#[cfg(not(any(target_arch = "wasm32", not(feature = "use-webrtc"))))] // is server
 fn server_setup(mut net: ResMut<NetworkResource>) {
     let ip_address =
         bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
@@ -110,13 +132,28 @@ fn server_setup(mut net: ResMut<NetworkResource>) {
 }
 
 fn client_setup(mut commands: Commands, mut net: ResMut<NetworkResource>) {
-    let mut camera = Camera2dComponents::default();
-    camera.orthographic_projection.window_origin = WindowOrigin::BottomLeft;
-    commands.spawn(camera);
+    #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))]
+    {
+        let mut camera = Camera2dComponents::default();
+        camera.orthographic_projection.window_origin = WindowOrigin::BottomLeft;
+        commands.spawn(camera);
+    }
 
-    let ip_address =
-        bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
-    let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
+    cfg_if::cfg_if! {
+        if #[cfg(target_arch = "wasm32")] {
+            // FIXME: set this address to your local machine
+            let mut socket_address: SocketAddr = "192.168.1.20:0".parse().unwrap();
+            socket_address.set_port(SERVER_PORT);
+        } else {
+            let ip_address =
+                bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
+            let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
+        }
+    }
+
+    // let ip_address =
+    //     bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
+    // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
     log::info!("Starting client");
     net.connect(socket_address);
 }
@@ -227,22 +264,25 @@ fn handle_packets(
                                 remote_address
                             );
 
-                            // New client connected - spawn a ball
-                            let mut rng = rand::thread_rng();
-                            let vel_x = rng.gen_range(-0.5, 0.5);
-                            let vel_y = rng.gen_range(-0.5, 0.5);
-                            let pos_x = rng.gen_range(0.0, BOARD_WIDTH as f32);
-                            let pos_y = rng.gen_range(0.0, BOARD_HEIGHT as f32);
-                            log::info!("Spawning {}x{} {}/{}", pos_x, pos_y, vel_x, vel_y);
-                            commands.spawn((
-                                Ball {
-                                    velocity: 400.0 * Vec3::new(vel_x, vel_y, 0.0).normalize(),
-                                },
-                                Pawn {
-                                    controller: *handle,
-                                },
-                                Transform::from_translation(Vec3::new(pos_x, pos_y, 1.0)),
-                            ));
+                            #[cfg(not(any(target_arch = "wasm32", not(feature = "use-webrtc"))))]
+                            {
+                                // New client connected - spawn a ball
+                                let mut rng = rand::thread_rng();
+                                let vel_x = rng.gen_range(-0.5, 0.5);
+                                let vel_y = rng.gen_range(-0.5, 0.5);
+                                let pos_x = rng.gen_range(0.0, BOARD_WIDTH as f32);
+                                let pos_y = rng.gen_range(0.0, BOARD_HEIGHT as f32);
+                                log::info!("Spawning {}x{} {}/{}", pos_x, pos_y, vel_x, vel_y);
+                                commands.spawn((
+                                    Ball {
+                                        velocity: 400.0 * Vec3::new(vel_x, vel_y, 0.0).normalize(),
+                                    },
+                                    Pawn {
+                                        controller: *handle,
+                                    },
+                                    Transform::from_translation(Vec3::new(pos_x, pos_y, 1.0)),
+                                ));
+                            }
                         }
                         None => {
                             log::debug!("Connected on [{}]", handle);
@@ -307,10 +347,12 @@ fn handle_messages_server(mut net: ResMut<NetworkResource>, mut balls: Query<(&m
 
 type ServerIds = HashMap<u32, (u32, u32)>;
 
+#[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))]
 fn handle_messages_client(
     mut commands: Commands,
     mut net: ResMut<NetworkResource>,
     mut server_ids: ResMut<ServerIds>,
+    #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))]
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut balls: Query<(Entity, &mut Ball, &mut Transform)>,
 ) {

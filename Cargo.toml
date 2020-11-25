@@ -10,7 +10,7 @@ use-udp = ["naia-server-socket/use-udp"]
 use-webrtc = ["naia-server-socket/use-webrtc"]
 
 [dependencies]
-bevy = { version = "0.3", default-features = false }
+bevy = { version = "0.3", default-features = false, features = ["render"] }
 turbulence = "0.3"
 naia-client-socket = { version = "0.4.2", features = ["multithread"] }
 bytes = "0.5"
@@ -36,8 +36,8 @@ rand = "0.7"
 [target.'cfg(target_arch = "wasm32")'.dev-dependencies]
 console_error_panic_hook = "0.1.6"
 console_log = "0.2"
+bevy_webgl2 = {git = "https://github.com/mrk-its/bevy_webgl2", rev = "a724cdf6b6392e3d0b185112a34c011987b8dc63"}
 
 [[example]]
 name = "balls"
 path = "examples/balls.rs"
-required-features = ["bevy/default"]
