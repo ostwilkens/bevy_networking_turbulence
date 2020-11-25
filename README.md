@@ -27,6 +27,8 @@ On other terminal run:
 
 ### WASM
 
+### Simple example
+
 On one terminal run:
 
     $ env RUST_LOG=debug cargo run --example simple --no-default-features --features use-webrtc -- --server
@@ -37,4 +39,18 @@ Change IP address in `examples/simple.rs` / `startup()` function to point to you
     $ wasm-bindgen --out-dir target --target web target/wasm32-unknown-unknown/debug/examples/simple.wasm
     $ basic-http-server .
 
-Open <http://127.0.0.1:4000>.
+Open <http://127.0.0.1:4000/simple.html>.
+
+### Balls example
+
+On one terminal run:
+
+    $ env RUST_LOG=debug cargo run --example balls --no-default-features --features use-webrtc -- --server
+
+Change IP address in `examples/balls.rs` / `startup()` function to point to your local machine, and run:
+
+    $ cargo build --example simple --target wasm32-unknown-unknown
+    $ wasm-bindgen --out-dir target --target web target/wasm32-unknown-unknown/debug/examples/simple.wasm
+    $ basic-http-server .
+
+Open <http://127.0.0.1:4000/simple.html>.

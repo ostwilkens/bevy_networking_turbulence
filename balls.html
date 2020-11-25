@@ -1,38 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"
-    />
-    <title>eggface</title>
-    <style>
-      body {
-        margin: 0px;
-        background: rgb(80, 80, 80);
-        width: 100vw !important;
-        height: 100vh !important;
-      }
-      canvas {
-        width: 100% !important;
-        height: 100% !important;
-        touch-action: none;
-      }
-    </style>
-  </head>
-  <script type="module">
-    import init from './target/balls.js'
-    init()
-    function auto_focus () {
-      let canvas = document.getElementsByTagName('canvas')
-      if (!canvas.length) {
-        setTimeout(auto_focus, 100)
-      } else {
-        canvas[0].focus()
-      }
-    }
-    auto_focus()
-  </script>
-  <body></body>
-</html>
+<script type="module">
+  import init from './target/balls.js'
+  init()
+</script>

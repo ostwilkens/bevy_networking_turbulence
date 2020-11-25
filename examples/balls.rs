@@ -5,7 +5,7 @@
   via reliable channel client->server
 */
 
-#[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is graphical client
+#[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is client
 use bevy::render::camera::WindowOrigin;
 use bevy::{app::ScheduleRunnerSettings, prelude::*};
 use bevy_networking_turbulence::{
@@ -55,34 +55,33 @@ impl Plugin for BallsExample {
             .add_startup_system(server_setup)
             .add_system(ball_movement_system)
             .add_resource(NetworkBroadcast { frame: 0 })
-            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_server.system())
-            .add_system_to_stage(stage::POST_UPDATE, network_broadcast_system.system());
+            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_server)
+            .add_system_to_stage(stage::POST_UPDATE, network_broadcast_system);
         }
         else {
             panic!("built client, but running server");
         }
 
-        #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is graphical client
+        #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is client
         if !args.is_server {
 
             app.add_resource(WindowDescriptor {
                 width: BOARD_WIDTH,
                 height: BOARD_HEIGHT,
                 ..Default::default()
-            });
-
-            
-            // #[cfg(not(target_arch = "wasm32"))]
-            app.add_plugins(DefaultPlugins);
+            })
+            .add_plugins(DefaultPlugins);
             
             #[cfg(target_arch = "wasm32")]
             app.add_plugin(bevy_webgl2::WebGL2Plugin::default());
 
-            app.add_startup_system(client_setup.system())
+            app
+            .add_startup_system(client_setup)
             .add_resource(ClearColor(Color::rgb(0.3, 0.3, 0.3)))
             .add_resource(ServerIds::default())
-            .add_system(ball_control_system.system())
-            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_client.system());
+            .add_system(ball_control_system)
+            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_client)
+            ;
 
         }
         else {
@@ -93,7 +92,8 @@ impl Plugin for BallsExample {
         .add_plugin(NetworkingPlugin)
         .add_startup_system(network_setup)
         .add_resource(NetworkReader::default())
-        .add_system(handle_packets);
+        .add_system(handle_packets)
+        ;
     }
 }
 
@@ -133,10 +133,10 @@ fn server_setup(mut net: ResMut<NetworkResource>) {
     net.listen(socket_address);
 }
 
-fn client_setup(mut commands: Commands, mut net: ResMut<NetworkResource>) {
-    #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))]
+fn client_setup(commands: &mut Commands, mut net: ResMut<NetworkResource>) {
+    #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is client
     {
-        let mut camera = Camera2dComponents::default();
+        let mut camera = Camera2dBundle::default();
         camera.orthographic_projection.window_origin = WindowOrigin::BottomLeft;
         commands.spawn(camera);
     }
@@ -153,9 +153,6 @@ fn client_setup(mut commands: Commands, mut net: ResMut<NetworkResource>) {
         }
     }
 
-    // let ip_address =
-    //     bevy_networking_turbulence::find_my_ip_address().expect("can't find ip address");
-    // let socket_address = SocketAddr::new(ip_address, SERVER_PORT);
     log::info!("Starting client");
     net.connect(socket_address);
 }
@@ -266,7 +263,7 @@ fn handle_packets(
                                 remote_address
                             );
 
-                            #[cfg(not(any(target_arch = "wasm32", not(feature = "use-webrtc"))))]
+                            #[cfg(not(any(target_arch = "wasm32", not(feature = "use-webrtc"))))] // is server
                             {
                                 // New client connected - spawn a ball
                                 let mut rng = rand::thread_rng();
@@ -349,12 +346,11 @@ fn handle_messages_server(mut net: ResMut<NetworkResource>, mut balls: Query<(&m
 
 type ServerIds = HashMap<u32, (u32, u32)>;
 
-#[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))]
+#[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))] // is client
 fn handle_messages_client(
     commands: &mut Commands,
     mut net: ResMut<NetworkResource>,
     mut server_ids: ResMut<ServerIds>,
-    #[cfg(any(target_arch = "wasm32", not(feature = "use-webrtc")))]
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut balls: Query<(Entity, &mut Ball, &mut Transform)>,
 ) {

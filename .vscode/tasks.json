@@ -1,0 +1,23 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "build --example balls --no-default-features --features use-webrtc",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "build balls server webrtc"
+		},
+		{
+			"type": "cargo",
+			"command": "build --example balls --target wasm32-unknown-unknown",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "build",
+			"label": "build balls client wasm"
+		}
+	]
+}
