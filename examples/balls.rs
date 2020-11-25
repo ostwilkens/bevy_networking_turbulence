@@ -47,11 +47,11 @@ impl Plugin for BallsExample {
                 1.0 / 60.0,
             )))
             .add_plugins(MinimalPlugins)
-            .add_startup_system(server_setup.system())
-            .add_system(ball_movement_system.system())
+            .add_startup_system(server_setup)
+            .add_system(ball_movement_system)
             .add_resource(NetworkBroadcast { frame: 0 })
-            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_server.system())
-            .add_system_to_stage(stage::POST_UPDATE, network_broadcast_system.system())
+            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_server)
+            .add_system_to_stage(stage::POST_UPDATE, network_broadcast_system)
         } else {
             // Client
             app.add_resource(WindowDescriptor {
@@ -61,32 +61,32 @@ impl Plugin for BallsExample {
             })
             .add_plugins(DefaultPlugins)
             .add_resource(ClearColor(Color::rgb(0.3, 0.3, 0.3)))
-            .add_startup_system(client_setup.system())
-            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_client.system())
+            .add_startup_system(client_setup)
+            .add_system_to_stage(stage::PRE_UPDATE, handle_messages_client)
             .add_resource(ServerIds::default())
-            .add_system(ball_control_system.system())
+            .add_system(ball_control_system)
         }
         .add_resource(args)
         .add_plugin(NetworkingPlugin)
-        .add_startup_system(network_setup.system())
+        .add_startup_system(network_setup)
         .add_resource(NetworkReader::default())
-        .add_system(handle_packets.system());
+        .add_system(handle_packets);
     }
 }
 
 fn ball_movement_system(time: Res<Time>, mut ball_query: Query<(&Ball, &mut Transform)>) {
     for (ball, mut transform) in ball_query.iter_mut() {
         let mut translation = transform.translation + (ball.velocity * time.delta_seconds);
-        let mut x = translation.x() as i32 % BOARD_WIDTH as i32;
-        let mut y = translation.y() as i32 % BOARD_HEIGHT as i32;
+        let mut x = translation.x as i32 % BOARD_WIDTH as i32;
+        let mut y = translation.y as i32 % BOARD_HEIGHT as i32;
         if x < 0 {
             x += BOARD_WIDTH as i32;
         }
         if y < 0 {
             y += BOARD_HEIGHT as i32;
         }
-        translation.set_x(x as f32);
-        translation.set_y(y as f32);
+        translation.x = x as f32;
+        translation.y = y as f32;
         transform.translation = translation;
     }
 }
@@ -109,8 +109,8 @@ fn server_setup(mut net: ResMut<NetworkResource>) {
     net.listen(socket_address);
 }
 
-fn client_setup(mut commands: Commands, mut net: ResMut<NetworkResource>) {
-    let mut camera = Camera2dComponents::default();
+fn client_setup(commands: &mut Commands, mut net: ResMut<NetworkResource>) {
+    let mut camera = Camera2dBundle::default();
     camera.orthographic_projection.window_origin = WindowOrigin::BottomLeft;
     commands.spawn(camera);
 
@@ -209,7 +209,7 @@ struct NetworkReader {
 }
 
 fn handle_packets(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut net: ResMut<NetworkResource>,
     mut state: ResMut<NetworkReader>,
     args: Res<Args>,
@@ -308,7 +308,7 @@ fn handle_messages_server(mut net: ResMut<NetworkResource>, mut balls: Query<(&m
 type ServerIds = HashMap<u32, (u32, u32)>;
 
 fn handle_messages_client(
-    mut commands: Commands,
+    commands: &mut Commands,
     mut net: ResMut<NetworkResource>,
     mut server_ids: ResMut<ServerIds>,
     mut materials: ResMut<Assets<ColorMaterial>>,
@@ -368,7 +368,7 @@ fn handle_messages_client(
         for (id, (frame, velocity, translation)) in to_spawn.iter() {
             log::info!("Spawning {} @{}", id, frame);
             let entity = commands
-                .spawn(SpriteComponents {
+                .spawn(SpriteBundle {
                     material: materials.add(
                         Color::rgb(0.8 - (*id as f32 / 5.0), 0.2, 0.2 + (*id as f32 / 5.0)).into(),
                     ),
