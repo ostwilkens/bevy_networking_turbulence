@@ -18,6 +18,14 @@
 			],
 			"group": "build",
 			"label": "build balls client wasm"
-		}
+		},
+		{
+			"label": "bindgen (release)",
+			"type": "shell",
+			"command": "wasm-bindgen --no-typescript --out-dir target --target web target/wasm32-unknown-unknown/debug/examples/balls.wasm",
+			"group": "build",
+			"dependsOn": ["build balls client wasm"],
+			"problemMatcher": []
+		  },
 	]
 }
